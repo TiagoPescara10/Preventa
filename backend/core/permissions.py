@@ -8,7 +8,14 @@ class _TieneRol(BasePermission):
 
     def has_permission(self, request, view):
         user = request.user
-        return bool(user and user.is_authenticated and getattr(user, "rol", None) == self.rol)
+        return bool(
+            user
+            and user.is_authenticated
+            # Django treats inactive users as authenticated; deny them here too
+            # instead of relying only on the authentication backend.
+            and user.is_active
+            and getattr(user, "rol", None) == self.rol
+        )
 
 
 class IsAdmin(_TieneRol):
