@@ -27,7 +27,7 @@ def login(api, email, password=PASSWORD):
 def test_crear_usuario_usa_email_como_login():
     user = Usuario.objects.create_user(email="Admin@Example.com", password="x", nombre="Ana")
 
-    assert user.get_username() == "Admin@example.com"
+    assert user.get_username() == "admin@example.com"
     assert user.rol == Rol.CLIENTE
 
 
@@ -48,6 +48,27 @@ def test_login_devuelve_access_en_body_y_refresh_en_cookie_httponly(api):
     assert cookie.value
     assert cookie["httponly"]
     assert cookie["path"] == settings.JWT_REFRESH_COOKIE["PATH"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("escrito", ["ANA@EXAMPLE.COM", "Ana@Example.com", "  ana@example.com "])
+def test_login_no_distingue_mayusculas_en_el_email(api, escrito):
+    # Bug #105
+    UsuarioFactory(email="ana@example.com")
+
+    response = login(api, escrito)
+
+    assert response.status_code == 200
+    assert response.data["usuario"]["email"] == "ana@example.com"
+
+
+@pytest.mark.django_db
+def test_login_funciona_si_el_usuario_se_creo_con_mayusculas(api):
+    # Bug #105
+    Usuario.objects.create_user(email="Beto@Example.com", password=PASSWORD, nombre="Beto")
+
+    assert login(api, "beto@example.com").status_code == 200
+    assert login(api, "BETO@EXAMPLE.COM").status_code == 200
 
 
 @pytest.mark.django_db
@@ -367,6 +388,41 @@ def test_crear_usuario_con_email_repetido_devuelve_400(api_admin, admin):
 
     assert response.status_code == 400
     assert "email" in response.data
+
+
+@pytest.mark.django_db
+def test_crear_usuario_con_email_que_solo_difiere_en_mayusculas_devuelve_400(api_admin):
+    # Bug #105
+    UsuarioFactory(email="ana@example.com")
+    body = {
+        "email": "Ana@Example.com",
+        "nombre": "Ana",
+        "rol": "OPERADOR",
+        "password": PASSWORD_FUERTE,
+    }
+
+    response = api_admin.post(reverse("usuario-list"), body, format="json")
+
+    assert response.status_code == 400
+    assert response.data["email"] == ["Ya existe un usuario con este email."]
+    assert Usuario.objects.filter(email__iexact="ana@example.com").count() == 1
+
+
+@pytest.mark.django_db
+def test_crear_usuario_guarda_el_email_en_minusculas(api_admin):
+    # Bug #105
+    body = {
+        "email": "  Nuevo.Operador@Example.com ",
+        "nombre": "Nuevo",
+        "rol": "OPERADOR",
+        "password": PASSWORD_FUERTE,
+    }
+
+    response = api_admin.post(reverse("usuario-list"), body, format="json")
+
+    assert response.status_code == 201
+    assert response.data["email"] == "nuevo.operador@example.com"
+    assert Usuario.objects.filter(email="nuevo.operador@example.com").exists()
 
 
 @pytest.mark.django_db
