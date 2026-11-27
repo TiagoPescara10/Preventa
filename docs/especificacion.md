@@ -218,6 +218,12 @@ Supuestos comunes: la hora de referencia es la de Córdoba (`America/Argentina/C
 
 **Tests.** Dos pedidos seguidos tienen números consecutivos · no hay duplicados con creaciones concurrentes.
 
+### RN-15 · Protección del administrador
+
+**Regla.** Un administrador no puede desactivarse a sí mismo ni quitarse el rol ADMIN, para que no pierda el acceso por error. Sí puede desactivar a otro administrador o quitarle el rol. Cualquiera de los dos intentos sobre sí mismo devuelve 409.
+
+**Tests.** Desactivarse a sí mismo devuelve 409 y el usuario sigue activo · quitarse el rol ADMIN devuelve 409 y el rol no cambia · editar su propio nombre manteniendo el rol ADMIN funciona · quitarle el rol ADMIN a otro administrador funciona.
+
 ## Estructura de carpetas
 
 Un solo repositorio (`preventa`) con `backend/`, `frontend/` y `docs/`. Cada app de Django repite la misma forma interna, así cualquier regla se encuentra rápido.

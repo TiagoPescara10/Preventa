@@ -155,7 +155,7 @@ Cómo autenticarse: [docs/api.md](docs/api.md).
 
 ## Reglas de negocio
 
-Ver [docs/reglas-de-negocio.md](docs/reglas-de-negocio.md) (RN-01 a RN-14) y [docs/modelo-datos.md](docs/modelo-datos.md).
+Ver [docs/reglas-de-negocio.md](docs/reglas-de-negocio.md) (RN-01 a RN-15) y [docs/modelo-datos.md](docs/modelo-datos.md).
 
 ## Flujo de trabajo con Git
 
