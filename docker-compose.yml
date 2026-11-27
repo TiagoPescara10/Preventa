@@ -1,0 +1,22 @@
+# Local development database only. The API and frontend run on the host.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: preventa_db
+    environment:
+      POSTGRES_DB: preventa
+      POSTGRES_USER: preventa
+      POSTGRES_PASSWORD: preventa
+    ports:
+      # Change the host port with POSTGRES_PORT=5433 if 5432 is already taken.
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U preventa -d preventa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
