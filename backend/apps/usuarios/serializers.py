@@ -36,7 +36,17 @@ class UsuarioCrearSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ["email", "nombre", "rol", "password"]
-        extra_kwargs = {"rol": {"required": True}}
+        extra_kwargs = {
+            "rol": {"required": True},
+            # Replaced by validate_email, which ignores case (#105).
+            "email": {"validators": []},
+        }
+
+    def validate_email(self, value):
+        email = Usuario.objects.normalize_email(value)
+        if Usuario.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("Ya existe un usuario con este email.")
+        return email
 
     def validate(self, attrs):
         # Unsaved instance so UserAttributeSimilarityValidator can compare

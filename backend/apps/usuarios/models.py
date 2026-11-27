@@ -3,6 +3,7 @@
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models.functions import Lower
 
 from core.models import TimeStampedModel
 
@@ -15,6 +16,18 @@ class Rol(models.TextChoices):
 
 class UsuarioManager(BaseUserManager):
     use_in_migrations = True
+
+    @classmethod
+    def normalize_email(cls, email):
+        """Emails are case-insensitive: lowercase the whole address and strip spaces.
+
+        Django's default only lowercases the domain (#105).
+        """
+        return (email or "").strip().lower()
+
+    def get_by_natural_key(self, username):
+        # Used by authenticate(): lets the login work whatever the case typed.
+        return self.get(**{self.model.USERNAME_FIELD: self.normalize_email(username)})
 
     def _create_user(self, email, password, **extra_fields):
         if not email:
@@ -42,7 +55,8 @@ class UsuarioManager(BaseUserManager):
 class Usuario(AbstractUser, TimeStampedModel):
     """A user of the platform.
 
-    - Login with email (no username).
+    - Login with email (no username). The email is stored lowercase and is unique
+      ignoring case, also in the database (#105).
     - `is_active` from AbstractUser is the "activo" flag (baja logica, RN-09).
     - The link to Cliente (required when rol == CLIENTE) is added in a later sprint.
     """
@@ -64,9 +78,21 @@ class Usuario(AbstractUser, TimeStampedModel):
         verbose_name = "usuario"
         verbose_name_plural = "usuarios"
         ordering = ["email"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                name="usuario_email_unico_sin_mayusculas",
+                violation_error_message="Ya existe un usuario con este email.",
+            ),
+        ]
 
     def __str__(self):
         return self.email
+
+    def save(self, *args, **kwargs):
+        # Covers every write path (admin, factories, plain .save()), not only the manager.
+        self.email = self.__class__.objects.normalize_email(self.email)
+        super().save(*args, **kwargs)
 
     @property
     def activo(self) -> bool:
