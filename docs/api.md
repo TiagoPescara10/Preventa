@@ -17,11 +17,18 @@ JWT con `djangorestframework-simplejwt`:
 |---|---|---|
 | POST | `/api/v1/auth/login/` | `{"email", "password"}` → `{"access", "usuario"}` + cookie de refresh |
 | POST | `/api/v1/auth/refresh/` | Con la cookie → `{"access"}` nuevo |
-| POST | `/api/v1/auth/logout/` | Borra la cookie de refresh |
+| POST | `/api/v1/auth/logout/` | Invalida el refresh de la cookie (blacklist) y borra la cookie → `204` |
 | GET | `/api/v1/auth/me/` | Usuario autenticado |
 | GET | `/api/v1/health/` | Chequeo de vida, sin autenticación |
 
 Las llamadas desde el frontend usan `withCredentials: true` para que el navegador mande la cookie.
+
+Detalles:
+
+- Login fallido (password incorrecta, email inexistente o usuario inactivo): `401` con el mismo mensaje genérico, para no revelar si el email existe.
+- Refresh sin cookie, con un token inválido o expirado, o con uno invalidado por logout: `401`.
+- Logout invalida el refresh en el servidor con la blacklist de simplejwt (`rest_framework_simplejwt.token_blacklist`), así que una copia del token deja de servir aunque no haya expirado. Si no hay cookie o el token ya es inválido, responde `204` igual.
+- El access token no se invalida con el logout: sigue sirviendo hasta que expira (máximo 15 minutos). El frontend lo descarta de memoria.
 
 ## Errores
 
