@@ -9,6 +9,7 @@ from core.views import health
 api_v1 = [
     path("health/", health, name="health"),
     path("auth/", include("apps.usuarios.urls")),
+    path("usuarios/", include("apps.usuarios.urls_gestion")),
     path("clientes/", include("apps.clientes.urls")),
     path("catalogo/", include("apps.catalogo.urls")),
     path("pedidos/", include("apps.pedidos.urls")),
