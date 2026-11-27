@@ -4,6 +4,8 @@ The access token goes in the response body (the frontend keeps it in memory).
 The refresh token is only ever sent as an httpOnly cookie.
 """
 
+from contextlib import suppress
+
 from django.conf import settings
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers, status
@@ -12,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .serializers import UsuarioSerializer
@@ -70,8 +73,13 @@ class RefreshView(APIView):
         serializer = TokenRefreshSerializer(data={"refresh": refresh})
         try:
             serializer.is_valid(raise_exception=True)
-        except TokenError as e:
-            raise InvalidToken(e.args[0]) from e
+        except (TokenError, InvalidToken):
+            # Returned directly: with no authentication_classes DRF would turn
+            # an AuthenticationFailed into a 403.
+            return Response(
+                {"detail": "Refresh token inválido o expirado."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         response = Response({"access": serializer.validated_data["access"]})
         if "refresh" in serializer.validated_data:  # only when ROTATE_REFRESH_TOKENS is on
@@ -80,13 +88,19 @@ class RefreshView(APIView):
 
 
 class LogoutView(APIView):
-    """POST -> deletes the refresh cookie."""
+    """POST -> blacklists the refresh token and deletes its cookie."""
 
     permission_classes = [AllowAny]
     authentication_classes = []
 
     @extend_schema(request=None, responses={204: None})
     def post(self, request):
+        refresh = request.COOKIES.get(COOKIE["NAME"])
+        if refresh:
+            # Already invalid or expired: nothing to revoke.
+            with suppress(TokenError):
+                RefreshToken(refresh).blacklist()
+
         response = Response(status=status.HTTP_204_NO_CONTENT)
         response.delete_cookie(COOKIE["NAME"], path=COOKIE["PATH"], samesite=COOKIE["SAMESITE"])
         return response
